@@ -1,2 +1,2 @@
-set(plugin_spotify_LIBS "-lspotify")
-module_add_library(plugin_spotify spotify.c)
+set(plugin_spotify_LIBS "-lspotify -lasound")
+module_add_library(plugin_spotify audio.c spotify.c)
