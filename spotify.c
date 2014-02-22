@@ -8,6 +8,7 @@
 #include <navit/color.h>
 #include <navit/osd.h>
 #include <navit/event.h>
+#include <navit/command.h>
 #include <navit/config_.h>
 
 #include <libspotify/api.h>
@@ -35,6 +36,8 @@ int g_logged_in;
 static audio_fifo_t g_audiofifo;
 
 int next_timeout = 0;
+
+struct attr initial_layout, main_layout;
 
 struct spotify
 {
@@ -165,7 +168,7 @@ on_login (sp_session * session, sp_error error)
   dbg (0, "spotify login\n");
   if (error != SP_ERROR_OK)
     {
-      dbg (0,stderr, "Error: unable to log in: %s\n",
+      dbg (0, "Error: unable to log in: %s\n",
 	       sp_error_message (error));
       exit (1);
     }
@@ -305,6 +308,29 @@ spotify_spotify_idle (struct spotify *spotify)
 }
 
 static void
+spotify_cmd_spotify_toggle(struct spotify *spotify)
+{
+  dbg (0,"toggling\n");
+}
+
+static struct command_table commands[] = {
+	{"spotify_toggle", command_cast(spotify_cmd_spotify_toggle)},
+};
+
+static void
+osd_spotify_init(struct navit *nav)
+{
+  struct spotify *spotify=g_new0(struct spotify, 1);  
+  struct attr attr;
+  spotify->navit=nav;
+
+  if (navit_get_attr(nav, attr_callback_list, &attr, NULL)) {
+  	dbg(0,"Adding command\n");
+	command_add_table(attr.u.callback_list, commands, sizeof(commands)/sizeof(struct command_table), spotify);
+  }
+}
+
+static void
 spotify_navit_init (struct navit *nav)
 {
   dbg (0, "spotify_navit_init\n");
@@ -328,8 +354,8 @@ spotify_navit_init (struct navit *nav)
     callback_new_1 (callback_cast (spotify_spotify_idle), spotify);
   event_add_idle (500, spotify->callback);
   dbg (0, "Callback created successfully\n");
+  osd_spotify_init(nav);
 }
-
 
 static void
 spotify_navit (struct navit *nav, int add)
@@ -345,6 +371,10 @@ spotify_navit (struct navit *nav, int add)
     }
 }
 
+struct marker {
+        struct cursor *cursor;
+};
+
 
 void
 plugin_init (void)
@@ -352,7 +382,7 @@ plugin_init (void)
   dbg (0, "spotify init\n");
   struct attr callback, navit;
   struct attr_iter *iter;
-  // plugin_register_osd_type("spotify", osd_button_new);
+//  plugin_register_osd_type("spotify", osd_marker_new);
   callback.type = attr_callback;
   callback.u.callback =
     callback_new_attr_0 (callback_cast (spotify_navit), attr_navit);
