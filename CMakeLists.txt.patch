@@ -1,5 +1,5 @@
---- ../../../../navit/CMakeLists.txt	2014-02-13 21:00:39.461973777 -0800
-+++ ../../../../navit/CMakeLists.txt	2014-02-13 16:54:59.660857409 -0800
+--- ../../../CMakeLists.txt	2014-02-13 21:00:39.461973777 -0800
++++ ../../../CMakeLists.txt	2014-02-13 16:54:59.660857409 -0800
 @@ -120,6 +120,7 @@
  find_package(PythonLibs)
  find_package(OpenSSL)
