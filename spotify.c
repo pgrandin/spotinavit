@@ -13,6 +13,7 @@
 
 #include <libspotify/api.h>
 #include "audio.h"
+#include "queue.h"
 
 extern const uint8_t g_appkey[];
 extern const size_t g_appkey_size;
@@ -71,7 +72,7 @@ try_jukebox_start (void)
   if (!g_jukeboxlist)
     dbg (0, "jukebox: No playlist. Waiting\n");
     // Fixme : g_jukeboxlist is never set to the right value
-    //return;
+    // return;
 
   if (!sp_playlist_num_tracks (g_jukeboxlist))
     {
@@ -84,7 +85,7 @@ try_jukebox_start (void)
       dbg (0,"jukebox: No more tracks in playlist. Waiting\n");
       return;
     }
-
+  
   t = sp_playlist_track (g_jukeboxlist, g_track_index);
 
   if (g_currenttrack && t != g_currenttrack)
@@ -216,14 +217,14 @@ on_login (sp_session * session, sp_error error)
               break;
             }
           g_jukeboxlist = pl;
-          try_jukebox_start ();
+          // try_jukebox_start ();
         }
     }
   if (!g_jukeboxlist)
     {
       dbg (0, "jukebox: No such playlist. Waiting for one to pop up...\n");
     }
-  try_jukebox_start ();
+  // try_jukebox_start ();
 
 
 }
@@ -235,9 +236,6 @@ on_music_delivered (sp_session * session, const sp_audioformat * format,
   audio_fifo_t *af = &g_audiofifo;
   audio_fifo_data_t *afd;
   size_t s;
-
-  s = num_frames * sizeof (int16_t) * format->channels;
-  return num_frames;
 
   if (num_frames == 0)
     return 0;                   // Audio discontinuity, do nothing
@@ -311,6 +309,7 @@ static void
 spotify_cmd_spotify_toggle(struct spotify *spotify)
 {
   dbg (0,"toggling\n");
+  try_jukebox_start();
 }
 
 static struct command_table commands[] = {
@@ -348,6 +347,7 @@ spotify_navit_init (struct navit *nav)
   g_sess = session;
   g_logged_in = 0;
   sp_session_login (session, username, password, 0, NULL);
+  audio_init (&g_audiofifo);
   struct spotify *spotify = g_new0 (struct spotify, 1);
   spotify->navit = nav;
   spotify->callback =
@@ -355,6 +355,7 @@ spotify_navit_init (struct navit *nav)
   event_add_idle (500, spotify->callback);
   dbg (0, "Callback created successfully\n");
   osd_spotify_init(nav);
+
 }
 
 static void
@@ -382,7 +383,6 @@ plugin_init (void)
   dbg (0, "spotify init\n");
   struct attr callback, navit;
   struct attr_iter *iter;
-//  plugin_register_osd_type("spotify", osd_marker_new);
   callback.type = attr_callback;
   callback.u.callback =
     callback_new_attr_0 (callback_cast (spotify_navit), attr_navit);
@@ -392,3 +392,4 @@ plugin_init (void)
     spotify_navit_init (navit.u.navit);
   config_attr_iter_destroy (iter);
 }
+
