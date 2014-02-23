@@ -6,7 +6,6 @@
 #include <navit/navit.h>
 #include <navit/callback.h>
 #include <navit/color.h>
-#include <navit/osd.h>
 #include <navit/event.h>
 #include <navit/command.h>
 #include <navit/config_.h>
@@ -17,15 +16,9 @@
 
 extern const uint8_t g_appkey[];
 extern const size_t g_appkey_size;
-extern const char *username;
-extern const char *password;
 
-/// Non-zero when a track has ended and the jukebox has not yet started a new one
-static int g_playback_done;
 /// Handle to the playlist currently being played
 static sp_playlist *g_jukeboxlist;
-/// Name of the playlist currently being played
-const char *g_listname;
 /// Handle to the current track 
 static sp_track *g_currenttrack;
 /// Index to the next track
@@ -45,7 +38,11 @@ struct spotify
   struct navit *navit;
   struct callback *callback;
   struct event_idle *idle;
-};
+  struct attr **attrs;
+  char *login;
+  char *password;
+  char *playlist;
+} *spotify;
 
 /**
  * The callbacks we are interested in for individual playlists.
@@ -131,7 +128,7 @@ playlist_added (sp_playlistcontainer * pc, sp_playlist * pl,
   sp_playlist_add_callbacks (pl, &pl_callbacks, NULL);
   dbg (0, "List name: %s\n", sp_playlist_name (pl));
 
-  if (!strcasecmp (sp_playlist_name (pl), g_listname))
+  if (!strcasecmp (sp_playlist_name (pl), spotify->playlist))
     {
       g_jukeboxlist = pl;
       try_jukebox_start ();
@@ -141,7 +138,7 @@ playlist_added (sp_playlistcontainer * pc, sp_playlist * pl,
 
 /**
  * Callback from libspotify, telling us the rootlist is fully synchronized
- * We just print an informational message
+ * We can resume playback
  *
  * @param  pc            The playlist container handle
  * @param  userdata      The opaque pointer
@@ -187,9 +184,9 @@ on_login (sp_session * session, sp_error error)
 
       sp_playlist_add_callbacks (pl, &pl_callbacks, NULL);
 
-      if (!strcasecmp (sp_playlist_name (pl), g_listname))
+      if (!strcasecmp (sp_playlist_name (pl), spotify->playlist))
         {
-          dbg (0,"Found the playlist %s\n", g_listname);
+          dbg (0,"Found the playlist %s\n", spotify->playlist);
           switch (sp_playlist_get_offline_status (session, pl))
             {
             case SP_PLAYLIST_OFFLINE_STATUS_NO:
@@ -272,8 +269,7 @@ on_music_delivered (sp_session * session, const sp_audioformat * format,
 static void
 on_end_of_track (sp_session * session)
 {
-  // g_playback_done = 1; 
-  //
+  
   ++g_track_index;
   try_jukebox_start ();
 }
@@ -317,19 +313,6 @@ static struct command_table commands[] = {
 };
 
 static void
-osd_spotify_init(struct navit *nav)
-{
-  struct spotify *spotify=g_new0(struct spotify, 1);  
-  struct attr attr;
-  spotify->navit=nav;
-
-  if (navit_get_attr(nav, attr_callback_list, &attr, NULL)) {
-  	dbg(0,"Adding command\n");
-	command_add_table(attr.u.callback_list, commands, sizeof(commands)/sizeof(struct command_table), spotify);
-  }
-}
-
-static void
 spotify_navit_init (struct navit *nav)
 {
   dbg (0, "spotify_navit_init\n");
@@ -346,15 +329,20 @@ spotify_navit_init (struct navit *nav)
   dbg (0, "Session created successfully :)\n");
   g_sess = session;
   g_logged_in = 0;
-  sp_session_login (session, username, password, 0, NULL);
+  sp_session_login (session, spotify->login, spotify->password, 0, NULL);
   audio_init (&g_audiofifo);
-  struct spotify *spotify = g_new0 (struct spotify, 1);
   spotify->navit = nav;
   spotify->callback =
     callback_new_1 (callback_cast (spotify_spotify_idle), spotify);
   event_add_idle (500, spotify->callback);
   dbg (0, "Callback created successfully\n");
-  osd_spotify_init(nav);
+  struct attr attr;
+  spotify->navit=nav;
+
+  if (navit_get_attr(nav, attr_callback_list, &attr, NULL)) {
+  	dbg(0,"Adding command\n");
+	command_add_table(attr.u.callback_list, commands, sizeof(commands)/sizeof(struct command_table), spotify);
+  }
 
 }
 
@@ -376,10 +364,31 @@ struct marker {
         struct cursor *cursor;
 };
 
+void
+plugin_set_attr (struct attr *attrs)
+{
+	struct attr *attr;
+	dbg(0, "** got attrs of size %lu\n", sizeof(attrs));
+        if ( (attr=attr_search(attrs, NULL, attr_spotify_login))) {
+		spotify->login=attr->u.str;
+                dbg(0, "found spotify_login attr %s\n", attr->u.str);
+        }
+        if ( (attr=attr_search(attrs, NULL, attr_spotify_password))) {
+		spotify->password=attr->u.str;
+                dbg(0, "found spotify_password attr %s\n", attr->u.str);
+        } else {
+		dbg(0, "SPOTIFY PASSWORD NOT FOUND!\n");
+	}
+        if ( (attr=attr_search(attrs, NULL, attr_spotify_playlist))) {
+		spotify->playlist=attr->u.str;
+                dbg(0, "found spotify_playlist attr %s\n", attr->u.str);
+        }
+}
 
 void
 plugin_init (void)
 {
+  spotify = g_new0 (struct spotify, 1);
   dbg (0, "spotify init\n");
   struct attr callback, navit;
   struct attr_iter *iter;

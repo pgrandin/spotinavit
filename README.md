@@ -4,9 +4,10 @@ spotinavit
 An (experimental) Spotify plugin for Navit
 
 * Clone the code to navit/plugin/spotify
-* patch the CMakeLists.txt using the patch in the plugin folder : patch -p0 <CMakeLists.txt.patch 
+* patch the CMakeLists.txt to enable the plugin: patch -p0 <CMakeLists.txt.patch 
+* patch the plugin code to add attr parsing : patch -p0 < plugin.patch
 * copy Findlibspotify.cmake to navit/cmake/
 * put your appkey in keys.h
-* put your login/pass into keys.h, until it's configured via navit.xml
-* Enable the plugin in your navit.xml
+* Enable the plugin in your navit.xml, don't forget to include your credentials:
+    <plugin path="libplugin_spotify.so" active="yes" spotify_login="me" spotify_password="secret" spotify_playlist="my_playlist"/>
 
