@@ -9,5 +9,5 @@ An (experimental) Spotify plugin for Navit
 * copy Findlibspotify.cmake to navit/cmake/
 * put your appkey in keys.h
 * Enable the plugin in your navit.xml, don't forget to include your credentials:
-    <plugin path="libplugin_spotify.so" active="yes" spotify_login="me" spotify_password="secret" spotify_playlist="my_playlist"/>
+ `<plugin path="libplugin_spotify.so" active="yes" spotify_login="me" spotify_password="secret" spotify_playlist="my_playlist"/>`
 
