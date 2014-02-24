@@ -42,6 +42,7 @@ struct spotify
   char *login;
   char *password;
   char *playlist;
+  gboolean playing;
 } *spotify;
 
 /**
@@ -65,6 +66,7 @@ try_jukebox_start (void)
 {
   dbg (0, "Starting the jukebox\n");
   sp_track *t;
+  spotify->playing=0;
 
   if (!g_jukeboxlist)
     dbg (0, "jukebox: No playlist. Waiting\n");
@@ -107,6 +109,7 @@ try_jukebox_start (void)
   dbg (0,"jukebox: Now playing \"%s\"...\n", sp_track_name (t));
 
   sp_session_player_load (g_sess, t);
+  spotify->playing=1;
   sp_session_player_play (g_sess, 1);
 }
 
@@ -302,14 +305,40 @@ spotify_spotify_idle (struct spotify *spotify)
 }
 
 static void
+spotify_cmd_spotify_previous_track(struct spotify *spotify)
+{
+  if(g_track_index>0) {
+  	--g_track_index;
+  }
+  try_jukebox_start();
+  dbg (0,"rewinding to previous track\n");
+}
+
+static void
+spotify_cmd_spotify_next_track(struct spotify *spotify)
+{
+  ++g_track_index;
+  try_jukebox_start();
+  dbg (0,"skipping to next track\n");
+}
+
+static void
 spotify_cmd_spotify_toggle(struct spotify *spotify)
 {
-  dbg (0,"toggling\n");
-  try_jukebox_start();
+  if(spotify->playing){
+  	dbg (0,"pausing playback\n");
+  	sp_session_player_play(g_sess,0);
+  } else {
+  	dbg (0,"resuming playback\n");
+  	sp_session_player_play(g_sess,1);
+  }
+  spotify->playing=!spotify->playing;
 }
 
 static struct command_table commands[] = {
 	{"spotify_toggle", command_cast(spotify_cmd_spotify_toggle)},
+	{"spotify_next_track", command_cast(spotify_cmd_spotify_next_track)},
+	{"spotify_previous_track", command_cast(spotify_cmd_spotify_previous_track)},
 };
 
 static void
